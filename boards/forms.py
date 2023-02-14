@@ -1,6 +1,22 @@
 from django import forms
 
-from .models import Post, Topic
+from .models import Post, Topic, Board
+from django.contrib.auth.models import User
+
+class NewBoardForm(forms.ModelForm):
+    description = forms.CharField(
+        widget=forms.Textarea(
+            attrs={'rows': 5, 'placeholder': 'What is this about?'}
+        ),
+        max_length=4000,
+        help_text='The max length of the text is 4000.'
+    )
+    # users = User.objects.all()
+    # members = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, choices=users)
+
+    class Meta:
+        model = Board
+        fields = ['name', 'description', 'private', 'members']
 
 
 class NewTopicForm(forms.ModelForm):

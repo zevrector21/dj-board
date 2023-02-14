@@ -11,6 +11,9 @@ from markdown import markdown
 class Board(models.Model):
     name = models.CharField(max_length=30, unique=True)
     description = models.CharField(max_length=100)
+    private = models.BooleanField(blank=True, default=False)
+    owner = models.ForeignKey(User, related_name='owner')
+    members = models.ManyToManyField(User, null=True, blank=True)
 
     def __str__(self):
         return self.name

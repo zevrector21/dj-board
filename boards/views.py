@@ -7,10 +7,11 @@ from django.views.generic import UpdateView, ListView
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.urls import reverse
+from django.db.models import Q, Count
 
 from myproject.utils import recaptcha_is_valid
 
-from .forms import NewTopicForm, PostForm
+from .forms import NewBoardForm, NewTopicForm, PostForm
 from .models import Board, Post, Topic
 
 
@@ -18,6 +19,26 @@ class BoardListView(ListView):
     model = Board
     context_object_name = 'boards'
     template_name = 'home.html'
+
+    def get_queryset(self):
+        queryset = Board.objects.filter(Q(private=False))
+        if self.request.user.is_authenticated():
+            queryset = Board.objects.filter(Q(private=False) | Q(private=True, members__in=[self.request.user]) | Q(owner=self.request.user))
+        return queryset
+
+
+@method_decorator(login_required, name='dispatch')
+class BoardUpdateView(UpdateView):
+    model = Board
+    fields = ('name', 'description', 'private', 'members')
+    template_name = 'edit_board.html'
+    context_object_name = 'board'
+
+    def form_valid(self, form):
+        board = form.save(commit=False)
+        board.owner = self.request.user
+        board.save()
+        return redirect('board_topics', board.pk)
 
 
 class TopicListView(ListView):
@@ -31,7 +52,13 @@ class TopicListView(ListView):
         return super().get_context_data(**kwargs)
 
     def get_queryset(self):
-        self.board = get_object_or_404(Board, pk=self.kwargs.get('pk'))
+        if self.request.user.is_authenticated():
+            self.board = get_object_or_404(Board, Q(private=False, pk=self.kwargs.get('pk')) 
+                | Q(private=True, members__in=[self.request.user], pk=self.kwargs.get('pk')) 
+                | Q(owner=self.request.user, pk=self.kwargs.get('pk')
+            ))
+        else:
+            self.board = get_object_or_404(Board, Q(private=False, pk=self.kwargs.get('pk')) )
         queryset = self.board.topics.order_by('-last_updated').annotate(replies=Count('posts') - 1)
         return queryset
 
@@ -55,6 +82,20 @@ class PostListView(ListView):
         self.topic = get_object_or_404(Topic, board__pk=self.kwargs.get('pk'), pk=self.kwargs.get('topic_pk'))
         queryset = self.topic.posts.order_by('created_at')
         return queryset
+
+
+@login_required
+def new_board(request):
+    if request.method == 'POST':
+        form = NewBoardForm(request.POST)
+        if form.is_valid() and recaptcha_is_valid(request):
+            board = form.save(commit=False)
+            board.owner = request.user
+            board.save()
+            return redirect('home')
+    else:
+        form = NewBoardForm()
+    return render(request, 'new_board.html', {'form': form})
 
 
 @login_required
