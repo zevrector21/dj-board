@@ -24,6 +24,22 @@ blockquote {
   height: 60px;
 }
 
+.form-checkbox-group {
+  list-style: none;
+}
+
+.form-checkbox-group li {
+  display: flex;
+}
+
+.form-checkbox-group li label {
+  display: flex;  
+}
+
+.form-checkbox-group li label input {
+  margin-right: 6px;
+}
+
 footer {
   height: 60px;
   padding: 15px 0;

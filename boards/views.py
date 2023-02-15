@@ -23,21 +23,22 @@ class BoardListView(ListView):
     def get_queryset(self):
         queryset = Board.objects.filter(Q(private=False))
         if self.request.user.is_authenticated():
-            queryset = Board.objects.filter(Q(private=False) | Q(private=True, members__in=[self.request.user]) | Q(owner=self.request.user))
+            queryset = Board.objects.filter(Q(private=False) | Q(private=True, members__in=[self.request.user]) 
+                | Q(owner=self.request.user)).distinct()
         return queryset
 
 
 @method_decorator(login_required, name='dispatch')
 class BoardUpdateView(UpdateView):
     model = Board
-    fields = ('name', 'description', 'private', 'members')
+    form_class = NewBoardForm
     template_name = 'edit_board.html'
     context_object_name = 'board'
 
     def form_valid(self, form):
         board = form.save(commit=False)
-        board.owner = self.request.user
         board.save()
+        form.save_m2m()
         return redirect('board_topics', board.pk)
 
 
@@ -53,10 +54,10 @@ class TopicListView(ListView):
 
     def get_queryset(self):
         if self.request.user.is_authenticated():
-            self.board = get_object_or_404(Board, Q(private=False, pk=self.kwargs.get('pk')) 
-                | Q(private=True, members__in=[self.request.user], pk=self.kwargs.get('pk')) 
-                | Q(owner=self.request.user, pk=self.kwargs.get('pk')
-            ))
+            queryset = Board.objects.filter((Q(private=False) | Q(private=True, members__in=[self.request.user]) 
+                | Q(owner=self.request.user)) & (Q(pk=self.kwargs.get('pk')))
+            ).distinct()
+            self.board = get_object_or_404(queryset)
         else:
             self.board = get_object_or_404(Board, Q(private=False, pk=self.kwargs.get('pk')) )
         queryset = self.board.topics.order_by('-last_updated').annotate(replies=Count('posts') - 1)
@@ -92,6 +93,7 @@ def new_board(request):
             board = form.save(commit=False)
             board.owner = request.user
             board.save()
+            form.save_m2m()
             return redirect('home')
     else:
         form = NewBoardForm()

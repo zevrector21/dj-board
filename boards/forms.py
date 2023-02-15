@@ -11,8 +11,11 @@ class NewBoardForm(forms.ModelForm):
         max_length=4000,
         help_text='The max length of the text is 4000.'
     )
-    # users = User.objects.all()
-    # members = forms.MultipleChoiceField(widget=forms.CheckboxSelectMultiple, choices=users)
+    members = forms.ModelMultipleChoiceField(
+        widget=forms.CheckboxSelectMultiple, 
+        queryset=User.objects.all(), 
+        required=False
+    )
 
     class Meta:
         model = Board
